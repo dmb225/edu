@@ -8,9 +8,10 @@ from django.shortcuts import redirect, get_object_or_404
 from django.forms.models import modelform_factory
 from django.apps import apps
 from django.db.models import Count
+from braces.views import CsrfExemptMixin, JsonRequestResponseMixin
 from .models import Subject, Course, Module, Content
 from .forms import ModuleFormSet
-from braces.views import CsrfExemptMixin, JsonRequestResponseMixin
+from students.forms import CourseEnrollForm
 
 
 class OwnerMixin(object):
@@ -32,11 +33,11 @@ class OwnerCourseMixin(OwnerMixin, LoginRequiredMixin, PermissionRequiredMixin):
 
 
 class OwnerCourseEditMixin(OwnerCourseMixin, OwnerEditMixin):
-    template_name = 'manage/course/form.html'
+    template_name = 'courses/manage/course/form.html'
 
 
 class ManageCourseListView(OwnerCourseMixin, ListView):
-    template_name = 'manage/course/list.html'
+    template_name = 'courses/manage/course/list.html'
     permission_required = 'courses.view_course'
 
 
@@ -49,12 +50,12 @@ class CourseUpdateView(OwnerCourseEditMixin, UpdateView):
 
 
 class CourseDeleteView(OwnerCourseMixin, DeleteView):
-    template_name = 'manage/course/delete.html'
+    template_name = 'courses/manage/course/delete.html'
     permission_required = 'courses.delete_course'
 
 
 class CourseModuleUpdateView(TemplateResponseMixin, View):
-    template_name = 'manage/module/formset.html'
+    template_name = 'courses/manage/module/formset.html'
     course = None
 
     def get_formset(self, data=None):
@@ -80,7 +81,7 @@ class ContentCreateUpdateView(TemplateResponseMixin, View):
     module = None
     model = None
     obj = None
-    template_name = 'manage/content/form.html'
+    template_name = 'courses/manage/content/form.html'
 
     def get_model(self, model_name):
         if model_name in ['text', 'video', 'image', 'file']:
@@ -125,7 +126,7 @@ class ContentDeleteView(View):
 
 
 class ModuleContentListView(TemplateResponseMixin, View):
-    template_name = 'manage/module/content_list.html'
+    template_name = 'courses/manage/module/content_list.html'
 
     def get(self, request, module_id):
         module = get_object_or_404(Module, id=module_id, course__owner=request.user)
@@ -148,7 +149,7 @@ class ContentOrderView(CsrfExemptMixin, JsonRequestResponseMixin, View):
 
 class CourseListView(TemplateResponseMixin, View):
     model = Course
-    template_name = 'course/list.html'
+    template_name = 'courses/course/list.html'
 
     def get(self, request, subject=None):
         subjects = Subject.objects.annotate(total_courses=Count('courses'))
@@ -161,4 +162,9 @@ class CourseListView(TemplateResponseMixin, View):
 
 class CourseDetailView(DetailView):
     model = Course
-    template_name = 'course/detail.html'
+    template_name = 'courses/course/detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['enroll_form'] = CourseEnrollForm(initial={'course': self.object})
+        return context
